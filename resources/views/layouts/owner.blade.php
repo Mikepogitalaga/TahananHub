@@ -42,6 +42,19 @@
                 <span>🚪</span> Rooms & Beds
             </a>
 
+            <div class="pt-3 pb-1 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Marketplace</div>
+
+            <a href="{{ route('owner.rental-requests.index') }}"
+               class="flex items-center gap-3 px-3 py-2 rounded-lg {{ request()->routeIs('owner.rental-requests.*') ? 'bg-emerald-600 text-white' : 'text-slate-300 hover:bg-slate-800 hover:text-white' }}">
+                <span>📩</span> Rental Requests
+                @php
+                    $pendingRR = auth()->user()->houseOwner ? \App\Models\RentalRequest::where('house_owner_id', auth()->user()->houseOwner->id)->where('status','pending')->count() : 0;
+                @endphp
+                @if($pendingRR > 0)
+                    <span class="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-400 text-slate-900 font-bold">{{ $pendingRR }}</span>
+                @endif
+            </a>
+
             <div class="pt-3 pb-1 px-3 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Tenants & Leases</div>
 
             <a href="{{ route('owner.tenants.index') }}"

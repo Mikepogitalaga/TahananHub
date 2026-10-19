@@ -1,100 +1,44 @@
 @extends('layouts.base')
 
 @section('body')
-<div class="min-h-screen flex flex-col bg-gray-50">
+<div class="min-h-screen bg-gray-50" x-data>
 
-    {{-- Top Navigation for Tenants --}}
-    <header class="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm" x-data="{ mobileMenuOpen: false }">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
-            
-            <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow">
-                    🛏️
+    {{-- Desktop Sidebar --}}
+    <x-tenant.sidebar />
+
+    {{-- More Menu Drawer (mobile + tablet) --}}
+    <x-tenant.more-menu />
+
+    {{-- Fixed Top Header --}}
+    <x-tenant.header />
+
+    {{-- Main wrapper: offset for sidebar on desktop, header on all --}}
+    <div class="lg:pl-60 xl:pl-64 pt-14">
+
+        {{-- Page content --}}
+        <main class="min-h-[calc(100vh-3.5rem)] px-4 sm:px-6 lg:px-8 py-5 sm:py-7
+                     pb-24 lg:pb-8">
+
+            {{-- Flash messages --}}
+            @if(session('success'))
+                <div class="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4 text-emerald-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                    <span>{{ session('success') }}</span>
                 </div>
-                <div>
-                    <span class="font-bold text-base text-gray-900">E-Boarding</span>
-                    <span class="block text-[10px] text-indigo-600 font-medium tracking-wider uppercase">Tenant Portal</span>
+            @endif
+            @if(session('error'))
+                <div class="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-center gap-2 shadow-sm">
+                    <svg class="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
+                    <span>{{ session('error') }}</span>
                 </div>
-            </div>
+            @endif
 
-            {{-- Desktop Nav --}}
-            <nav class="hidden md:flex items-center gap-1 text-sm font-medium">
-                <a href="{{ route('tenant.dashboard') }}"
-                   class="px-3 py-2 rounded-lg {{ request()->routeIs('tenant.dashboard') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' }}">
-                    Dashboard
-                </a>
-                <a href="{{ route('tenant.contract') }}"
-                   class="px-3 py-2 rounded-lg {{ request()->routeIs('tenant.contract') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' }}">
-                    My Room
-                </a>
-                <a href="{{ route('tenant.billings') }}"
-                   class="px-3 py-2 rounded-lg {{ request()->routeIs('tenant.billings') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' }}">
-                    Rent & Billing
-                </a>
-                <a href="{{ route('tenant.maintenance.index') }}"
-                   class="px-3 py-2 rounded-lg {{ request()->routeIs('tenant.maintenance.*') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' }}">
-                    Maintenance
-                </a>
-                <a href="{{ route('tenant.announcements') }}"
-                   class="px-3 py-2 rounded-lg {{ request()->routeIs('tenant.announcements') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' }}">
-                    Announcements
-                </a>
-                <a href="{{ route('tenant.profile') }}"
-                   class="px-3 py-2 rounded-lg {{ request()->routeIs('tenant.profile') ? 'bg-indigo-50 text-indigo-700 font-semibold' : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100' }}">
-                    Profile
-                </a>
-            </nav>
+            @yield('content')
+        </main>
+    </div>
 
-            {{-- User Dropdown / Logout --}}
-            <div class="flex items-center gap-3">
-                <div class="hidden sm:block text-right">
-                    <p class="text-xs font-semibold text-gray-800">{{ auth()->user()->name }}</p>
-                    <p class="text-[10px] text-gray-500">{{ auth()->user()->email }}</p>
-                </div>
-                <form method="POST" action="{{ route('logout') }}" class="inline">
-                    @csrf
-                    <button type="submit" class="px-3 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition">
-                        Logout
-                    </button>
-                </form>
+    {{-- Mobile Bottom Navigation --}}
+    <x-tenant.bottom-navigation />
 
-                {{-- Mobile menu button --}}
-                <button @click="mobileMenuOpen = !mobileMenuOpen" class="md:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
-                </button>
-            </div>
-        </div>
-
-        {{-- Mobile dropdown menu --}}
-        <div x-show="mobileMenuOpen" x-cloak class="md:hidden border-t border-gray-200 bg-white px-4 py-3 space-y-1 text-sm font-medium">
-            <a href="{{ route('tenant.dashboard') }}" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">Dashboard</a>
-            <a href="{{ route('tenant.contract') }}" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">My Room</a>
-            <a href="{{ route('tenant.billings') }}" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">Rent & Billing</a>
-            <a href="{{ route('tenant.maintenance.index') }}" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">Maintenance</a>
-            <a href="{{ route('tenant.announcements') }}" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">Announcements</a>
-            <a href="{{ route('tenant.profile') }}" class="block px-3 py-2 rounded-lg text-gray-700 hover:bg-gray-100">Profile</a>
-        </div>
-    </header>
-
-    {{-- Main Content Area --}}
-    <main class="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6">
-        {{-- Flash Messages --}}
-        @if(session('success'))
-            <div class="mb-5 p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm flex items-center gap-2 shadow-sm">
-                <span>✓</span>
-                <span>{{ session('success') }}</span>
-            </div>
-        @endif
-
-        @if(session('error'))
-            <div class="mb-5 p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm flex items-center gap-2 shadow-sm">
-                <span>⚠️</span>
-                <span>{{ session('error') }}</span>
-            </div>
-        @endif
-
-        @yield('content')
-    </main>
 </div>
 @endsection
-

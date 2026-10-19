@@ -4,23 +4,32 @@
 
 @section('content')
 <div class="space-y-6">
-
-    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-            <a href="{{ route('owner.properties.show', $room->property_id) }}" class="text-xs text-emerald-600 hover:underline mb-1 inline-block">
-                ← Back to {{ $room->property?->name }}
-            </a>
-            <h2 class="text-2xl font-bold text-gray-900">Room {{ $room->room_number }} Bed Units</h2>
-            <p class="text-xs text-gray-500">
-                Property: {{ $room->property?->name }} | Capacity: {{ $room->capacity }} beds | Rate: ₱{{ number_format($room->rental_rate, 2) }}/mo
-            </p>
+    @if(session('bed_photo_success'))
+        <div role="status" class="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm">
+            {{ session('bed_photo_success') }}
         </div>
-        <div>
-            <a href="{{ route('owner.rooms.edit', $room) }}" class="px-3 py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50">
+    @endif
+    @if($errors->has('photo'))
+        <div role="alert" class="p-3 rounded-lg bg-red-50 border border-red-200 text-red-800 text-sm">
+            {{ $errors->first('photo') }}
+        </div>
+    @endif
+
+        <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+                <a href="{{ route('owner.properties.show', $room->property_id) }}" class="text-xs text-emerald-600 hover:underline mb-1 inline-block">← Back to {{ $room->property?->name }}</a>
+                <h2 class="text-2xl font-bold text-gray-900">Room {{ $room->room_number }} Bed Units</h2>
+                <p class="text-xs text-gray-500">
+                    Property: {{ $room->property?->name }} | Capacity: {{ $room->capacity }} beds | Rate: ₱{{ number_format($room->rental_rate, 2) }}/mo
+                </p>
+            </div>
+            <a href="{{ route('owner.rooms.edit', $room) }}" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition w-full sm:w-auto">
+                <svg aria-hidden="true" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <path d="M4 21v-6m8 -6v6M4 10.5V4.5h15.5V10.5"></path>
+                </svg>
                 Edit Room Settings
             </a>
         </div>
-    </div>
 
     {{-- Beds Grid & Add Bed Form --}}
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -37,6 +46,19 @@
                     @endphp
                     <div class="p-4 rounded-xl border bg-white shadow-sm flex flex-col justify-between
                         {{ $bed->status === 'occupied' ? 'border-emerald-300' : ($bed->status === 'available' ? 'border-blue-300' : 'border-gray-200') }}">
+                        <div class="relative w-full aspect-[16/9] bg-gray-100 rounded-lg overflow-hidden mb-3">
+                            @if($bed->photo)
+                                <img src="{{ asset('storage/' . $bed->photo) }}" alt="Bed {{ $bed->bed_number }} photo" loading="lazy" decoding="async" onerror="this.hidden=true; this.nextElementSibling.classList.remove('hidden');" class="absolute inset-0 w-full h-full object-cover">
+                            @endif
+                            <div role="img" aria-label="No bed photo available" class="{{ $bed->photo ? 'hidden ' : '' }}absolute inset-0 text-gray-500 flex flex-col items-center justify-center gap-1">
+                                <svg aria-hidden="true" class="w-7 h-7 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                    <rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2"></rect>
+                                    <circle cx="9" cy="10" r="1.5"></circle>
+                                    <path d="m4.5 17 5-5 3.5 3.5 2.5-2.5 4 4"></path>
+                                </svg>
+                                <span class="text-[10px] font-medium">No photo available</span>
+                            </div>
+                        </div>
                         <div>
                             <div class="flex items-center justify-between mb-2">
                                 <span class="font-mono font-bold text-base text-gray-900">
@@ -66,26 +88,40 @@
                         </div>
 
                         {{-- Bed Status Actions --}}
-                        <div class="pt-3 border-t border-gray-100 flex items-center justify-between text-xs">
-                            <form method="POST" action="{{ route('owner.beds.update-status', $bed) }}" class="flex items-center gap-1">
+                        <div class="pt-3 border-t border-gray-100 space-y-3">
+                            <form method="POST" action="{{ route('owner.beds.photo.store', $bed) }}" enctype="multipart/form-data">
                                 @csrf
-                                @method('PATCH')
-                                <select name="status" onchange="this.form.submit()" class="text-xs py-1 px-2 border rounded-md">
-                                    <option value="available" {{ $bed->status === 'available' ? 'selected' : '' }}>Available</option>
-                                    <option value="occupied" {{ $bed->status === 'occupied' ? 'selected' : '' }} {{ !$tenant ? 'disabled' : '' }}>Occupied</option>
-                                    <option value="reserved" {{ $bed->status === 'reserved' ? 'selected' : '' }}>Reserved</option>
-                                    <option value="maintenance" {{ $bed->status === 'maintenance' ? 'selected' : '' }}>Maintenance</option>
-                                    <option value="inactive" {{ $bed->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
-                                </select>
+                                <label class="flex items-center justify-between gap-2 text-xs text-gray-600 cursor-pointer">
+                                    <span class="font-medium">{{ $bed->photo ? 'Replace bed photo' : 'Add bed photo' }}</span>
+                                    <span class="px-2.5 py-1 rounded-md border border-emerald-200 text-emerald-700 hover:bg-emerald-50 focus-within:ring-2 focus-within:ring-emerald-500">
+                                        Choose image
+                                        <input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp" class="sr-only" required onchange="this.form.submit()">
+                                    </span>
+                                </label>
+                                <p class="mt-1 text-[10px] text-gray-400">JPG, JPEG, PNG or WEBP · up to 4 MB</p>
                             </form>
 
-                            @if(!$tenant && $bed->status !== 'occupied')
-                                <form method="POST" action="{{ route('owner.beds.destroy', $bed) }}" onsubmit="return confirm('Remove Bed {{ $bed->bed_number }}?');">
+                            <div class="flex items-center justify-between text-xs">
+                                <form method="POST" action="{{ route('owner.beds.update-status', $bed) }}" class="flex items-center gap-1">
                                     @csrf
-                                    @method('DELETE')
-                                    <button type="submit" class="text-red-500 hover:text-red-700 font-medium">Remove</button>
+                                    @method('PATCH')
+                                    <select name="status" onchange="this.form.submit()" class="text-xs py-1 px-2 border rounded-md">
+                                        <option value="available" {{ $bed->status === 'available' ? 'selected' : '' }}>Available</option>
+                                        <option value="occupied" {{ $bed->status === 'occupied' ? 'selected' : '' }} {{ !$tenant ? 'disabled' : '' }}>Occupied</option>
+                                        <option value="reserved" {{ $bed->status === 'reserved' ? 'selected' : '' }}>Reserved</option>
+                                        <option value="maintenance" {{ $bed->status === 'maintenance' ? 'selected' : '' }}>Maintenance</option>
+                                        <option value="inactive" {{ $bed->status === 'inactive' ? 'selected' : '' }}>Inactive</option>
+                                    </select>
                                 </form>
-                            @endif
+
+                                @if(!$tenant && $bed->status !== 'occupied')
+                                    <form method="POST" action="{{ route('owner.beds.destroy', $bed) }}" onsubmit="return confirm('Remove Bed {{ $bed->bed_number }}?');">
+                                        @csrf
+                                        @method('DELETE')
+                                        <button type="submit" class="text-red-500 hover:text-red-700 font-medium">Remove</button>
+                                    </form>
+                                @endif
+                            </div>
                         </div>
                     </div>
                 @empty
@@ -94,8 +130,8 @@
             </div>
         </div>
 
-        {{-- Right 1 col: Add Bed Unit Form --}}
-        <div>
+        {{-- Right 1 col: Add Bed Unit Form + Room Photo --}}
+        <div class="space-y-5">
             <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm space-y-4">
                 <h3 class="font-bold text-gray-900 text-sm">Add Bed Unit</h3>
                 <p class="text-xs text-gray-500">Manually add an individual bed to Room {{ $room->room_number }}.</p>
@@ -130,10 +166,39 @@
                     </button>
                 </form>
             </div>
+
+            {{-- Room Photo --}}
+            <div class="bg-white rounded-xl border border-gray-200 p-5 shadow-sm">
+                <h3 class="font-bold text-gray-900 text-sm mb-3">Room Photo</h3>
+
+                @if($room->photo)
+                    <div class="relative group rounded-xl overflow-hidden border border-gray-200 mb-3">
+                        <img src="{{ asset('storage/' . $room->photo) }}" alt="Room photo"
+                             class="w-full h-36 object-cover">
+                        <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                            <form method="POST" action="{{ route('owner.rooms.photo.destroy', $room) }}"
+                                  onsubmit="return confirm('Remove room photo?')">
+                                @csrf @method('DELETE')
+                                <button class="px-3 py-1.5 bg-red-500 text-white text-xs font-bold rounded hover:bg-red-600">Remove</button>
+                            </form>
+                        </div>
+                    </div>
+                @endif
+
+                <form method="POST" action="{{ route('owner.rooms.photo.store', $room) }}"
+                      enctype="multipart/form-data">
+                    @csrf
+                    <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition">
+                        <span class="text-2xl">📷</span>
+                        <span class="text-xs text-gray-500 mt-1">{{ $room->photo ? 'Replace photo' : 'Upload room photo' }}</span>
+                        <input type="file" name="photo" accept="image/*" class="hidden"
+                               onchange="this.closest('form').submit()">
+                    </label>
+                </form>
+            </div>
         </div>
 
     </div>
 
 </div>
 @endsection
-

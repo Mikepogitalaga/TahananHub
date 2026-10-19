@@ -19,7 +19,7 @@
         </div>
     @endif
 
-    <form method="POST" action="{{ route('owner.rooms.store') }}" class="space-y-4">
+    <form method="POST" action="{{ route('owner.rooms.store') }}" enctype="multipart/form-data" class="space-y-4">
         @csrf
 
         <div>
@@ -98,6 +98,36 @@
             <textarea name="description" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-emerald-500">{{ old('description') }}</textarea>
         </div>
 
+        {{-- Room Photo --}}
+        <div class="border-t border-gray-200 pt-5" x-data="roomPhotoPreview()">
+            <h3 class="font-bold text-gray-900 text-sm mb-1">Room Photo</h3>
+            <p class="text-xs text-gray-400 mb-3">Upload one photo shown on the public room listing. Optional.</p>
+
+            <label class="flex flex-col items-center justify-center w-full h-28 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer hover:border-emerald-400 hover:bg-emerald-50 transition"
+                   x-on:dragover.prevent x-on:drop.prevent="handleDrop($event)">
+                <template x-if="!preview">
+                    <div class="flex flex-col items-center">
+                        <span class="text-3xl mb-1">📷</span>
+                        <span class="text-sm font-medium text-gray-600">Click or drag a photo here</span>
+                        <span class="text-xs text-gray-400">JPG, PNG, WEBP — max 4MB</span>
+                    </div>
+                </template>
+                <template x-if="preview">
+                    <div class="relative w-full h-full">
+                        <img :src="preview" class="w-full h-full object-cover rounded-xl">
+                        <span class="absolute inset-0 flex items-center justify-center bg-black/30 rounded-xl text-white text-xs font-semibold opacity-0 hover:opacity-100 transition">Change Photo</span>
+                    </div>
+                </template>
+                <input type="file" name="photo" accept="image/*" class="hidden"
+                       x-ref="fileInput" x-on:change="handleFile($event.target.files[0])">
+            </label>
+
+            <button x-show="preview" type="button" @click="clear()"
+                    class="mt-2 text-xs text-red-500 hover:text-red-700 font-medium">
+                ✕ Remove photo
+            </button>
+        </div>
+
         <div class="p-3 bg-emerald-50 border border-emerald-200 rounded-lg">
             <label class="flex items-center gap-2 cursor-pointer text-xs font-semibold text-emerald-900">
                 <input type="checkbox" name="auto_generate_beds" value="1" checked class="rounded text-emerald-600 focus:ring-emerald-500">
@@ -113,5 +143,26 @@
         </div>
     </form>
 </div>
+
+@push('scripts')
+<script>
+function roomPhotoPreview() {
+    return {
+        preview: null,
+        handleFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = e => this.preview = e.target.result;
+            reader.readAsDataURL(file);
+        },
+        handleDrop(e) { this.handleFile(e.dataTransfer.files[0]); },
+        clear() {
+            this.preview = null;
+            this.$refs.fileInput.value = '';
+        }
+    }
+}
+</script>
+@endpush
 @endsection
 

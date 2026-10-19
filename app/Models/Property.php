@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -20,7 +21,33 @@ class Property extends Model
         'contact_number',
         'description',
         'status',
+        'is_listed',
+        'public_description',
+        'public_contact',
+        'amenities',
+        'house_rules',
+        'latitude',
+        'longitude',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'is_listed' => 'boolean',
+            'amenities' => 'array',
+            'latitude'  => 'decimal:7',
+            'longitude' => 'decimal:7',
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // Scopes
+    // -------------------------------------------------------------------------
+
+    public function scopePubliclyListed(Builder $query): Builder
+    {
+        return $query->where('status', 'active')->where('is_listed', true);
+    }
 
     // -------------------------------------------------------------------------
     // Relationships
@@ -34,6 +61,21 @@ class Property extends Model
     public function rooms(): HasMany
     {
         return $this->hasMany(Room::class);
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(PropertyPhoto::class)->orderBy('sort_order');
+    }
+
+    public function coverPhoto(): HasMany
+    {
+        return $this->hasMany(PropertyPhoto::class)->where('is_cover', true)->limit(1);
+    }
+
+    public function rentalRequests(): HasMany
+    {
+        return $this->hasMany(RentalRequest::class);
     }
 
     public function expenses(): HasMany
@@ -81,5 +123,19 @@ class Property extends Model
     {
         return $this->rooms->flatMap->beds->count();
     }
-}
 
+    public function getStartingRentAttribute(): ?float
+    {
+        $rates = $this->rooms->flatMap->beds->whereNotNull('rental_rate')->pluck('rental_rate');
+        return $rates->isNotEmpty() ? (float) $rates->min() : null;
+    }
+
+    public function getGoogleMapsUrlAttribute(): ?string
+    {
+        if ($this->latitude && $this->longitude) {
+            return "https://www.google.com/maps?q={$this->latitude},{$this->longitude}";
+        }
+        $query = urlencode($this->full_address);
+        return "https://www.google.com/maps/search/?api=1&query={$query}";
+    }
+}

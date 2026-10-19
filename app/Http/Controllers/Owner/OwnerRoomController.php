@@ -46,31 +46,38 @@ class OwnerRoomController extends Controller
         $owner = auth()->user()->houseOwner;
 
         $validated = $request->validate([
-            'property_id'   => ['required', 'exists:properties,id'],
-            'room_number'   => ['required', 'string', 'max:50'],
-            'room_name'     => ['nullable', 'string', 'max:100'],
-            'floor'         => ['nullable', 'string', 'max:50'],
-            'room_type'     => ['required', 'in:single,double,shared,dormitory,other'],
-            'capacity'      => ['required', 'integer', 'min:1', 'max:50'],
-            'rental_rate'   => ['required', 'numeric', 'min:0'],
-            'description'   => ['nullable', 'string', 'max:1000'],
-            'status'        => ['required', 'in:available,full,maintenance,inactive'],
+            'property_id'        => ['required', 'exists:properties,id'],
+            'room_number'        => ['required', 'string', 'max:50'],
+            'room_name'          => ['nullable', 'string', 'max:100'],
+            'floor'              => ['nullable', 'string', 'max:50'],
+            'room_type'          => ['required', 'in:single,double,shared,dormitory,other'],
+            'capacity'           => ['required', 'integer', 'min:1', 'max:50'],
+            'rental_rate'        => ['required', 'numeric', 'min:0'],
+            'description'        => ['nullable', 'string', 'max:1000'],
+            'status'             => ['required', 'in:available,full,maintenance,inactive'],
             'auto_generate_beds' => ['nullable', 'boolean'],
+            'photo'              => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
 
-        // Security check
         $property = Property::findOrFail($validated['property_id']);
         if ($property->house_owner_id !== $owner->id) {
             abort(403, 'Unauthorized.');
         }
 
         $room = DB::transaction(function () use ($validated, $request) {
-            $room = Room::create($validated);
+            $photoPath = null;
+            if ($request->hasFile('photo')) {
+                $photoPath = $request->file('photo')->store('rooms/photos', 'public');
+            }
 
-            // Automatically generate beds if requested
+            $room = Room::create(array_merge(
+                collect($validated)->except(['auto_generate_beds', 'photo'])->toArray(),
+                ['photo' => $photoPath]
+            ));
+
             if ($request->boolean('auto_generate_beds', true)) {
                 $capacity = (int) $validated['capacity'];
-                $letters = range('A', 'Z');
+                $letters  = range('A', 'Z');
                 for ($i = 0; $i < $capacity; $i++) {
                     $bedNumber = $capacity > 1 ? ($letters[$i] ?? (string)($i + 1)) : '1';
                     Bed::create([
@@ -88,7 +95,7 @@ class OwnerRoomController extends Controller
 
         $this->activityLog->log('create_room', 'rooms', $room->id, "Room {$room->room_number}");
 
-        return redirect()->route('owner.properties.show', $property)->with('success', "Room {$room->room_number} added with beds.");
+        return redirect()->route('owner.properties.show', $room->property_id)->with('success', "Room {$room->room_number} added with beds.");
     }
 
     public function show(Room $room): View
@@ -120,7 +127,18 @@ class OwnerRoomController extends Controller
             'rental_rate' => ['required', 'numeric', 'min:0'],
             'description' => ['nullable', 'string', 'max:1000'],
             'status'      => ['required', 'in:available,full,maintenance,inactive'],
+            'photo'       => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
         ]);
+
+        if ($request->hasFile('photo')) {
+            // Delete old photo
+            if ($room->photo) {
+                \Illuminate\Support\Facades\Storage::disk('public')->delete($room->photo);
+            }
+            $validated['photo'] = $request->file('photo')->store('rooms/photos', 'public');
+        } else {
+            unset($validated['photo']);
+        }
 
         $room->update($validated);
 

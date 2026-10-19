@@ -17,26 +17,32 @@ use App\Http\Controllers\Owner\OwnerDashboardController;
 use App\Http\Controllers\Owner\OwnerExpenseController;
 use App\Http\Controllers\Owner\OwnerMaintenanceController;
 use App\Http\Controllers\Owner\OwnerPaymentController;
+use App\Http\Controllers\Owner\OwnerPhotoController;
 use App\Http\Controllers\Owner\OwnerPrivacyController;
 use App\Http\Controllers\Owner\OwnerPropertyController;
+use App\Http\Controllers\Owner\OwnerRentalRequestController;
 use App\Http\Controllers\Owner\OwnerReportController;
 use App\Http\Controllers\Owner\OwnerRoomController;
 use App\Http\Controllers\Owner\OwnerTenantController;
+use App\Http\Controllers\Public\HouseController;
 use App\Http\Controllers\Tenant\TenantAnnouncementController;
 use App\Http\Controllers\Tenant\TenantBillingController;
 use App\Http\Controllers\Tenant\TenantContractController;
 use App\Http\Controllers\Tenant\TenantDashboardController;
 use App\Http\Controllers\Tenant\TenantMaintenanceController;
 use App\Http\Controllers\Tenant\TenantProfileController;
+use App\Http\Controllers\Tenant\TenantRentalRequestController;
 use Illuminate\Support\Facades\Route;
 
 // -----------------------------------------------------------------------------
-// Public
+// Public Marketplace
 // -----------------------------------------------------------------------------
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('welcome');
+Route::get('/', fn () => redirect()->route('houses.index'))->name('welcome');
+
+Route::get('/houses', [HouseController::class, 'index'])->name('houses.index');
+Route::get('/houses/{property}', [HouseController::class, 'show'])->name('houses.show');
+Route::get('/houses/{property}/rooms/{room}', [HouseController::class, 'room'])->name('houses.room');
 
 // -----------------------------------------------------------------------------
 // Authentication
@@ -48,11 +54,20 @@ Route::middleware('guest')->group(function () {
         ->middleware('throttle:10,1')
         ->name('login.attempt');
 
-    Route::get('/register', [AuthController::class, 'showRegisterOwner'])->name('register');
+    Route::get('/register', [AuthController::class, 'showRegisterTenant'])->name('register');
+    Route::post('/register', [AuthController::class, 'registerTenant'])
+        ->middleware('throttle:5,1')
+        ->name('register.store');
+
     Route::get('/register/owner', [AuthController::class, 'showRegisterOwner'])->name('register.owner');
     Route::post('/register/owner', [AuthController::class, 'registerOwner'])
         ->middleware('throttle:5,1')
         ->name('register.owner.store');
+
+    Route::get('/register/tenant', [AuthController::class, 'showRegisterTenant'])->name('register.tenant');
+    Route::post('/register/tenant', [AuthController::class, 'registerTenant'])
+        ->middleware('throttle:5,1')
+        ->name('register.tenant.store');
 });
 
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
@@ -135,6 +150,15 @@ Route::prefix('owner')->name('owner.')->middleware('role:owner')->group(function
     Route::put('properties/{property}', [OwnerPropertyController::class, 'update'])->name('properties.update');
     Route::delete('properties/{property}', [OwnerPropertyController::class, 'destroy'])->name('properties.destroy');
 
+    // Property Photos
+    Route::post('properties/{property}/photos', [OwnerPhotoController::class, 'storePropertyPhoto'])->name('properties.photos.store');
+    Route::patch('properties/{property}/photos/{photo}/cover', [OwnerPhotoController::class, 'setCover'])->name('properties.photos.cover');
+    Route::delete('properties/{property}/photos/{photo}', [OwnerPhotoController::class, 'destroyPropertyPhoto'])->name('properties.photos.destroy');
+
+    // Room Photo
+    Route::post('rooms/{room}/photo', [OwnerPhotoController::class, 'storeRoomPhoto'])->name('rooms.photo.store');
+    Route::delete('rooms/{room}/photo', [OwnerPhotoController::class, 'destroyRoomPhoto'])->name('rooms.photo.destroy');
+
     // Rooms
     Route::get('rooms', [OwnerRoomController::class, 'index'])->name('rooms.index');
     Route::get('rooms/create', [OwnerRoomController::class, 'create'])->name('rooms.create');
@@ -146,6 +170,7 @@ Route::prefix('owner')->name('owner.')->middleware('role:owner')->group(function
 
     // Beds
     Route::post('rooms/{room}/beds', [OwnerBedController::class, 'store'])->name('rooms.beds.store');
+    Route::post('beds/{bed}/photo', [OwnerBedController::class, 'storePhoto'])->name('beds.photo.store');
     Route::patch('beds/{bed}/status', [OwnerBedController::class, 'updateStatus'])->name('beds.update-status');
     Route::delete('beds/{bed}', [OwnerBedController::class, 'destroy'])->name('beds.destroy');
 
@@ -204,6 +229,12 @@ Route::prefix('owner')->name('owner.')->middleware('role:owner')->group(function
     Route::put('announcements/{announcement}', [OwnerAnnouncementController::class, 'update'])->name('announcements.update');
     Route::delete('announcements/{announcement}', [OwnerAnnouncementController::class, 'destroy'])->name('announcements.destroy');
 
+    // Rental Requests (marketplace)
+    Route::get('rental-requests', [OwnerRentalRequestController::class, 'index'])->name('rental-requests.index');
+    Route::get('rental-requests/{rentalRequest}', [OwnerRentalRequestController::class, 'show'])->name('rental-requests.show');
+    Route::post('rental-requests/{rentalRequest}/approve', [OwnerRentalRequestController::class, 'approve'])->name('rental-requests.approve');
+    Route::post('rental-requests/{rentalRequest}/reject', [OwnerRentalRequestController::class, 'reject'])->name('rental-requests.reject');
+
     // Reports
     Route::get('reports', [OwnerReportController::class, 'index'])->name('reports.index');
 
@@ -220,6 +251,13 @@ Route::prefix('owner')->name('owner.')->middleware('role:owner')->group(function
 
 Route::prefix('tenant')->name('tenant.')->middleware('role:tenant')->group(function () {
     Route::get('dashboard', [TenantDashboardController::class, 'index'])->name('dashboard');
+
+    // Rental Requests (marketplace flow)
+    Route::get('rental-requests', [TenantRentalRequestController::class, 'index'])->name('rental-requests.index');
+    Route::get('rental-requests/create', [TenantRentalRequestController::class, 'create'])->name('rental-requests.create');
+    Route::post('rental-requests', [TenantRentalRequestController::class, 'store'])->name('rental-requests.store');
+    Route::get('rental-requests/{rentalRequest}', [TenantRentalRequestController::class, 'show'])->name('rental-requests.show');
+    Route::patch('rental-requests/{rentalRequest}/cancel', [TenantRentalRequestController::class, 'cancel'])->name('rental-requests.cancel');
 
     // Profile
     Route::get('profile', [TenantProfileController::class, 'show'])->name('profile');
@@ -243,4 +281,3 @@ Route::prefix('tenant')->name('tenant.')->middleware('role:tenant')->group(funct
     // Announcements
     Route::get('announcements', [TenantAnnouncementController::class, 'index'])->name('announcements');
 });
-

@@ -50,6 +50,15 @@ class AuthController extends Controller
 
         $this->activityLog->log('login', 'auth', $user->id, $user->name);
 
+        // Honour the intended URL (set when guest clicks "Request to Rent")
+        if ($request->input('_intended')) {
+            return redirect($request->input('_intended'));
+        }
+
+        if ($user->isTenant()) {
+            return redirect()->intended(route('houses.index'));
+        }
+
         return $this->redirectByRole($user);
     }
 
@@ -77,12 +86,12 @@ class AuthController extends Controller
     public function registerOwner(Request $request): RedirectResponse
     {
         $validated = $request->validate([
-            'name'                  => ['required', 'string', 'max:255'],
-            'email'                 => ['required', 'email', 'unique:users,email'],
-            'phone'                 => ['nullable', 'string', 'max:20'],
-            'password'              => ['required', 'string', 'min:8', 'confirmed'],
-            'business_name'         => ['nullable', 'string', 'max:255'],
-            'business_address'      => ['nullable', 'string', 'max:500'],
+            'name'             => ['required', 'string', 'max:255'],
+            'email'            => ['required', 'email', 'unique:users,email'],
+            'phone'            => ['nullable', 'string', 'max:20'],
+            'password'         => ['required', 'string', 'min:8', 'confirmed'],
+            'business_name'    => ['nullable', 'string', 'max:255'],
+            'business_address' => ['nullable', 'string', 'max:500'],
         ]);
 
         DB::transaction(function () use ($validated, $request) {
@@ -96,9 +105,9 @@ class AuthController extends Controller
             ]);
 
             HouseOwner::create([
-                'user_id'          => $user->id,
-                'business_name'    => $validated['business_name'] ?? null,
-                'business_address' => $validated['business_address'] ?? null,
+                'user_id'           => $user->id,
+                'business_name'     => $validated['business_name'] ?? null,
+                'business_address'  => $validated['business_address'] ?? null,
                 'subscription_plan' => 'free',
             ]);
 
@@ -112,6 +121,45 @@ class AuthController extends Controller
     }
 
     // -------------------------------------------------------------------------
+    // Tenant Registration
+    // -------------------------------------------------------------------------
+
+    public function showRegisterTenant(): View|RedirectResponse
+    {
+        if (Auth::check()) {
+            return $this->redirectByRole(Auth::user());
+        }
+        return view('auth.register-tenant');
+    }
+
+    public function registerTenant(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'unique:users,email'],
+            'phone'    => ['nullable', 'string', 'max:20'],
+            'password' => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = User::create([
+            'name'     => $validated['name'],
+            'email'    => $validated['email'],
+            'phone'    => $validated['phone'] ?? null,
+            'password' => Hash::make($validated['password']),
+            'role'     => User::ROLE_TENANT,
+            'status'   => 'active',
+        ]);
+
+        Auth::login($user);
+        $request->session()->regenerate();
+
+        $this->activityLog->log('registered', 'auth', $user->id, $user->name);
+
+        // Return to the house/room they were trying to request
+        return redirect()->intended(route('houses.index'));
+    }
+
+    // -------------------------------------------------------------------------
     // Helpers
     // -------------------------------------------------------------------------
 
@@ -121,8 +169,7 @@ class AuthController extends Controller
             User::ROLE_SUPER_ADMIN => redirect()->route('admin.dashboard'),
             User::ROLE_OWNER       => redirect()->route('owner.dashboard'),
             User::ROLE_TENANT      => redirect()->route('tenant.dashboard'),
-            default                => redirect('/'),
+            default                => redirect()->route('houses.index'),
         };
     }
 }
-

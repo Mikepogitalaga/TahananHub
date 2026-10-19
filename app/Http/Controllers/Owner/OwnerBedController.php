@@ -8,6 +8,7 @@ use App\Models\Room;
 use App\Services\ActivityLogService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
 
 class OwnerBedController extends Controller
 {
@@ -18,16 +19,16 @@ class OwnerBedController extends Controller
         $this->authorizeRoom($room);
 
         $validated = $request->validate([
-            'bed_number'  => ['required', 'string', 'max:50'],
+            'bed_number' => ['required', 'string', 'max:50'],
             'rental_rate' => ['nullable', 'numeric', 'min:0'],
-            'status'      => ['required', 'in:available,occupied,reserved,maintenance,inactive'],
+            'status' => ['required', 'in:available,occupied,reserved,maintenance,inactive'],
         ]);
 
         $bed = $room->beds()->create([
-            'bed_number'  => $validated['bed_number'],
-            'bed_code'    => "{$room->room_number}-{$validated['bed_number']}",
+            'bed_number' => $validated['bed_number'],
+            'bed_code' => "{$room->room_number}-{$validated['bed_number']}",
             'rental_rate' => $validated['rental_rate'] ?? $room->rental_rate,
-            'status'      => $validated['status'],
+            'status' => $validated['status'],
         ]);
 
         $this->activityLog->log('create_bed', 'beds', $bed->id, "Bed {$bed->bed_number} in Room {$room->room_number}");
@@ -53,6 +54,31 @@ class OwnerBedController extends Controller
         return back()->with('success', "Bed {$bed->bed_number} status updated to {$validated['status']}.");
     }
 
+    public function storePhoto(Request $request, Bed $bed): RedirectResponse
+    {
+        $this->authorizeBed($bed);
+
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpg,jpeg,png,webp', 'max:4096'],
+        ]);
+
+        $previousPath = $bed->photo;
+        $newPath = $validated['photo']->store("beds/{$bed->id}", 'public');
+
+        try {
+            $bed->update(['photo' => $newPath]);
+        } catch (\Throwable $exception) {
+            Storage::disk('public')->delete($newPath);
+            throw $exception;
+        }
+
+        if ($previousPath && $previousPath !== $newPath) {
+            Storage::disk('public')->delete($previousPath);
+        }
+
+        return back()->with('bed_photo_success', "Photo for Bed {$bed->bed_number} updated.");
+    }
+
     public function destroy(Bed $bed): RedirectResponse
     {
         $this->authorizeBed($bed);
@@ -63,6 +89,9 @@ class OwnerBedController extends Controller
 
         $room = $bed->room;
         $bed->delete();
+        if ($bed->photo) {
+            Storage::disk('public')->delete($bed->photo);
+        }
 
         return back()->with('success', "Bed {$bed->bed_number} removed.");
     }
@@ -81,4 +110,3 @@ class OwnerBedController extends Controller
         }
     }
 }
-

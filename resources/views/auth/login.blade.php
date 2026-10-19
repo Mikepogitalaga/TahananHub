@@ -49,6 +49,9 @@
 
         <form method="POST" action="{{ route('login.attempt') }}" class="space-y-5">
             @csrf
+            @if(request('intended'))
+                <input type="hidden" name="_intended" value="{{ request('intended') }}">
+            @endif
 
             {{-- Email --}}
             <div>
@@ -112,11 +115,12 @@
             </button>
         </form>
 
-        {{-- Register link --}}
-        <p class="text-center text-sm text-gray-500 mt-6">
-            Are you a property owner?
-            <a href="{{ route('register.owner') }}" class="text-blue-600 hover:underline font-medium">Register here</a>
-        </p>
+        {{-- Register links --}}
+        <div class="text-center text-sm text-gray-500 mt-6 space-y-2">
+            <p>New tenant? <a href="{{ route('register.tenant') }}{{ request('intended') ? '?intended='.urlencode(request('intended')) : '' }}" class="text-indigo-600 hover:underline font-medium">Create a tenant account</a></p>
+            <p>Are you a property owner? <a href="{{ route('register.owner') }}" class="text-blue-600 hover:underline font-medium">Register here</a></p>
+            <p><a href="{{ route('houses.index') }}" class="text-gray-400 hover:text-gray-600">← Browse Houses</a></p>
+        </div>
     </div>
 
     <p class="text-center text-blue-200 text-xs mt-6">

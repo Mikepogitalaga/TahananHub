@@ -15,6 +15,7 @@ class Bed extends Model
         'bed_code',
         'rental_rate',
         'status',
+        'photo',
     ];
 
     protected function casts(): array
@@ -54,4 +55,3 @@ class Bed extends Model
             : "Bed {$this->bed_number}";
     }
 }
-

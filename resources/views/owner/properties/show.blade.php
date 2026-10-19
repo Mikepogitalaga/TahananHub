@@ -58,7 +58,8 @@
         </div>
     </div>
 
-    {{-- Rooms & Visual Bed Matrix (Requirement #19) --}}
+
+    {{-- Rooms & Visual Bed Matrix --}}
     <div class="bg-white rounded-xl border border-gray-200 p-6 shadow-sm">
         <div class="flex items-center justify-between pb-4 border-b border-gray-100 mb-6">
             <div>
@@ -72,8 +73,22 @@
 
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             @forelse($property->rooms as $room)
-                <div class="border border-gray-200 rounded-xl p-4 bg-gray-50/50 hover:bg-white hover:border-emerald-300 transition flex flex-col justify-between">
-                    <div>
+                <div class="border border-gray-200 rounded-xl bg-gray-50/50 hover:bg-white hover:border-emerald-300 transition flex flex-col justify-between overflow-hidden">
+                    <div class="relative w-full aspect-[16/9] bg-gray-100">
+                        @if($room->photo)
+                            <img src="{{ asset('storage/' . $room->photo) }}" alt="Room {{ $room->room_number }} photo" loading="lazy" decoding="async" onerror="this.hidden=true; this.nextElementSibling.classList.remove('hidden');" class="absolute inset-0 w-full h-full object-cover">
+                        @endif
+                        <div role="img" aria-label="No room photo available" class="{{ $room->photo ? 'hidden ' : '' }}absolute inset-0 text-gray-500 flex flex-col items-center justify-center gap-2">
+                            <svg aria-hidden="true" class="w-9 h-9 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2"></rect>
+                                <circle cx="9" cy="10" r="1.5"></circle>
+                                <path d="m4.5 17 5-5 3.5 3.5 2.5-2.5 4 4"></path>
+                            </svg>
+                            <span class="text-xs font-medium">No photo available</span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 flex flex-col justify-between flex-1">
                         <div class="flex items-start justify-between mb-2">
                             <div>
                                 <h4 class="font-bold text-gray-900 text-base">Room {{ $room->room_number }}</h4>
@@ -97,18 +112,35 @@
                                 @php
                                     $tenant = $bed->currentAssignment?->tenant;
                                 @endphp
-                                <div class="p-2 rounded-lg border text-xs flex items-center justify-between
+                                <div class="rounded-lg border overflow-hidden text-xs
                                     {{ $bed->status === 'occupied' ? 'bg-emerald-50 border-emerald-200 text-emerald-950' : ($bed->status === 'available' ? 'bg-blue-50 border-blue-200 text-blue-950' : 'bg-gray-100 border-gray-200 text-gray-700') }}">
-                                    <div class="flex items-center gap-2">
-                                        <span class="font-bold font-mono">Bed {{ $bed->bed_number }}</span>
-                                        @if($tenant)
-                                            <span class="text-[11px] text-gray-700 truncate max-w-[120px]">— {{ $tenant->full_name }}</span>
+                                    <div class="p-2 flex items-center gap-2">
+                                        <div class="relative w-24 shrink-0 aspect-[16/9] rounded overflow-hidden bg-gray-100">
+                                        @if($bed->photo)
+                                            <img src="{{ asset('storage/' . $bed->photo) }}" alt="Bed {{ $bed->bed_number }} photo" loading="lazy" decoding="async" onerror="this.hidden=true; this.nextElementSibling.classList.remove('hidden');" class="absolute inset-0 w-full h-full object-cover">
                                         @endif
+                                        <div role="img" aria-label="No bed photo available" class="{{ $bed->photo ? 'hidden ' : '' }}absolute inset-0 text-gray-500 flex flex-col items-center justify-center gap-1">
+                                            <svg aria-hidden="true" class="w-5 h-5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                                <rect x="3.75" y="4.75" width="16.5" height="14.5" rx="2"></rect>
+                                                <circle cx="9" cy="10" r="1.5"></circle>
+                                                <path d="m4.5 17 5-5 3.5 3.5 2.5-2.5 4 4"></path>
+                                            </svg>
+                                            <span class="text-[9px] font-medium text-center leading-tight">No photo</span>
+                                        </div>
+                                        </div>
+                                        <div class="flex items-center justify-between gap-2 min-w-0 flex-1">
+                                            <div class="flex items-center gap-2 min-w-0">
+                                            <span class="font-bold font-mono shrink-0">Bed {{ $bed->bed_number }}</span>
+                                            @if($tenant)
+                                                <span class="text-[11px] text-gray-700 truncate max-w-[120px]">— {{ $tenant->full_name }}</span>
+                                            @endif
+                                            </div>
+                                            <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded shrink-0
+                                                {{ $bed->status === 'occupied' ? 'bg-emerald-200 text-emerald-900' : ($bed->status === 'available' ? 'bg-blue-200 text-blue-900' : 'bg-gray-300 text-gray-800') }}">
+                                                {{ $bed->status }}
+                                            </span>
+                                        </div>
                                     </div>
-                                    <span class="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded
-                                        {{ $bed->status === 'occupied' ? 'bg-emerald-200 text-emerald-900' : ($bed->status === 'available' ? 'bg-blue-200 text-blue-900' : 'bg-gray-300 text-gray-800') }}">
-                                        {{ $bed->status }}
-                                    </span>
                                 </div>
                             @empty
                                 <p class="text-[11px] text-gray-400 italic">No beds configured yet.</p>
@@ -116,9 +148,19 @@
                         </div>
                     </div>
 
-                    <div class="pt-3 mt-4 border-t border-gray-200 flex items-center justify-between text-xs">
-                        <a href="{{ route('owner.rooms.edit', $room) }}" class="text-gray-500 hover:text-gray-900">Edit Room</a>
-                        <a href="{{ route('owner.rooms.show', $room) }}" class="text-emerald-600 font-semibold hover:underline">Manage Beds →</a>
+                    <div class="pt-3 mt-4 border-t border-gray-200 flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-2">
+                        <a href="{{ route('owner.rooms.edit', $room) }}" class="inline-flex items-center justify-center gap-1.5 px-3 py-2 sm:py-1.5 border border-gray-300 rounded-lg text-xs font-semibold text-gray-700 hover:bg-gray-50 hover:border-gray-400 transition w-full sm:w-auto">
+                            <svg aria-hidden="true" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M4 21v-6m8 -6v6M4 10.5V4.5h15.5V10.5"></path>
+                            </svg>
+                            Edit Room
+                        </a>
+                        <a href="{{ route('owner.rooms.show', $room) }}" class="inline-flex items-center justify-center gap-1.5 px-3.5 py-2 sm:py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm transition w-full sm:w-auto">
+                            Manage Beds
+                            <svg aria-hidden="true" class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                                <path d="M5 12h14M13 6l6 6-6 6"></path>
+                            </svg>
+                        </a>
                     </div>
                 </div>
             @empty
@@ -131,4 +173,3 @@
 
 </div>
 @endsection
-

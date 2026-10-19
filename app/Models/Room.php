@@ -18,6 +18,7 @@ class Room extends Model
         'rental_rate',
         'description',
         'status',
+        'photo',
     ];
 
     protected function casts(): array
